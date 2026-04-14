@@ -11,6 +11,15 @@ function getForkUrl(githubId: string, repoName: string) {
   return `https://github.com/${githubId}/${repoName}`;
 }
 
+function isMissionRepo(tabCategory: string) {
+  return tabCategory === 'base' || tabCategory === 'common';
+}
+
+function isPendingRepo(cohort: number, tabCategory: string) {
+  if (cohort === 0) return true;
+  return !isMissionRepo(tabCategory) && tabCategory !== 'precourse';
+}
+
 function buildMarkdown(archives: CohortArchive[], tab: Tab, githubId: string): string {
   const lines: string[] = [`# ${new Date().getFullYear()} woowacourse-archive\n` || '# woowacourse-archive\n'];
 
@@ -25,12 +34,14 @@ function buildMarkdown(archives: CohortArchive[], tab: Tab, githubId: string): s
           ...repo,
           submissions:
             repo.submissions?.filter((submission) => {
-              if (tab === 'pending') return true;
+              if (tab === 'pending') return submission.status === 'closed';
               return submission.status !== 'closed';
             }) ?? null,
         }))
         .filter((r) => {
-          if (tab === 'pending') return Boolean(r.submissions && r.submissions.length > 0);
+          if (tab === 'pending') {
+            return isPendingRepo(archive.cohort, r.tabCategory) && Boolean(r.submissions && r.submissions.length > 0);
+          }
           if (archive.cohort === 0) return false;
           if (tab === 'mission') return r.tabCategory === 'base' && Boolean(r.submissions && r.submissions.length > 0);
           if (tab === 'common') return r.tabCategory === 'common' && Boolean(r.submissions && r.submissions.length > 0);
@@ -97,12 +108,14 @@ export function MissionArchive({ archive = [], memberTracks, githubId }: Props) 
               ...repo,
               submissions:
                 repo.submissions?.filter((submission) => {
-                  if (tab === 'pending') return true;
+                  if (tab === 'pending') return submission.status === 'closed';
                   return submission.status !== 'closed';
                 }) ?? null,
             }))
             .filter((r) => {
-              if (tab === 'pending') return Boolean(r.submissions && r.submissions.length > 0);
+              if (tab === 'pending') {
+                return isPendingRepo(ca.cohort, r.tabCategory) && Boolean(r.submissions && r.submissions.length > 0);
+              }
               if (ca.cohort === 0) return false;
               if (tab === 'mission') {
                 if (r.tabCategory !== 'base') return false;
