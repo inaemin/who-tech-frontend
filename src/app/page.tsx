@@ -8,7 +8,7 @@ export default async function HomePage(props: {
   const cohort = searchParams?.cohort ? Number(searchParams.cohort) : undefined;
   const track = searchParams?.track ?? undefined;
   const range = searchParams?.range;
-  const days = range === '7d' ? 7 : undefined;
+  const days = range === '30d' ? 30 : undefined;
 
   const [feed, allCohorts] = await Promise.all([
     api.members
@@ -24,7 +24,7 @@ export default async function HomePage(props: {
         initialCohorts={allCohorts}
         initialCohort={searchParams?.cohort ?? null}
         initialTrack={(searchParams?.track as 'frontend' | 'backend' | 'android' | null) ?? null}
-        initialRange={(range as '7d' | 'all') ?? '7d'}
+        initialRange={(range as '30d' | 'all') ?? '30d'}
       />
     </div>
   );

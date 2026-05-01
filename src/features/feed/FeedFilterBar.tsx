@@ -2,7 +2,7 @@
 
 import type { Track } from '@/types';
 
-type Range = '7d' | 'all';
+type Range = '30d' | 'all';
 
 const tabClass = (active: boolean) =>
   `-mb-px cursor-pointer rounded-t-md border-b-2 px-4 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors sm:rounded-none sm:px-4 sm:py-2 ${
@@ -48,7 +48,7 @@ export function FeedFilterBar({ filters, applyFilters, cohorts, filteredCount }:
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-md border border-border bg-surface p-1">
-          {(['7d', 'all'] as const).map((r) => (
+          {(['30d', 'all'] as const).map((r) => (
             <button
               key={r}
               onClick={() => applyFilters({ range: r })}
@@ -56,7 +56,7 @@ export function FeedFilterBar({ filters, applyFilters, cohorts, filteredCount }:
                 range === r ? 'bg-border text-text' : 'text-text-muted hover:text-text'
               }`}
             >
-              {r === '7d' ? '최근 7일' : '전체'}
+              {r === '30d' ? '최근 30일' : '전체'}
             </button>
           ))}
         </div>
