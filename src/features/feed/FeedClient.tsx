@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import { useFilterState } from '@/hooks/useFilterState';
@@ -94,6 +94,26 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
     staleTime: 5 * 60 * 1000,
   });
 
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [entry] = entries;
+      if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage],
+  );
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(handleObserver, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [handleObserver]);
+
   const items = useMemo(() => {
     if (data?.pages) return data.pages.flatMap((page) => page.posts);
     if (isPending && (cohort || track)) return [];
@@ -168,17 +188,8 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
               filteredCount={items.length}
             />
             <FeedListSection cohort={cohort} cohorts={cohorts} filtered={items} grouped={grouped} />
-            {hasNextPage && (
-              <div className="mt-4 flex justify-center">
-                <button
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                  className="cursor-pointer rounded-md border border-border bg-surface px-4 py-2 text-[13px] font-medium text-text hover:bg-surface-alt disabled:opacity-50"
-                >
-                  {isFetchingNextPage ? '로딩 중...' : '더 보기'}
-                </button>
-              </div>
-            )}
+            {hasNextPage && <div ref={sentinelRef} className="h-10" />}
+            {isFetchingNextPage && <div className="py-4 text-center text-[13px] text-text-muted">로딩 중...</div>}
           </>
         )}
       </section>
