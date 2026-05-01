@@ -15,7 +15,7 @@ import { api } from '@/lib/api';
 import { getBlogSource } from '@/lib/utils';
 import type { FeedItem, Track } from '@/types';
 
-type Range = '7d' | '30d';
+type Range = '7d' | 'all';
 
 interface FeedSkeletonProps {
   cohorts: number[];
@@ -42,7 +42,7 @@ function FeedFilterBarSkeleton({ cohorts, filteredCount }: FeedSkeletonProps) {
         </div>
         <div className="pointer-events-none flex items-center gap-1 rounded-md border border-border bg-surface p-1">
           <div className="rounded px-2.5 py-1.5 text-[11px] text-text-muted">최근 7일</div>
-          <div className="rounded px-2.5 py-1.5 text-[11px] text-text-muted">30일</div>
+          <div className="rounded px-2.5 py-1.5 text-[11px] text-text-muted">전체</div>
         </div>
       </div>
       <div className="pointer-events-none mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border pb-4">
@@ -77,13 +77,13 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
   });
 
   const { range, cohort, track } = filters;
-  const days = range === '30d' ? 30 : 7;
+  const days = range === '7d' ? 7 : undefined;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } = useInfiniteQuery({
     queryKey: ['feed', days, track, cohort],
     queryFn: ({ pageParam }) =>
       api.members.feed({
-        days,
+        ...(days ? { days } : {}),
         track: track ?? undefined,
         cohort: cohort ? Number(cohort) : undefined,
         cursor: pageParam,
