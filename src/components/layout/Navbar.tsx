@@ -3,9 +3,14 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useTransition } from 'react';
 import { ThemeToggle } from './ThemeToggle';
-import { SearchDropdown } from '@/features/search/SearchDropdown';
+
+const SearchDropdown = dynamic(
+  () => import('@/features/search/SearchDropdown').then((mod) => ({ default: mod.SearchDropdown })),
+  { ssr: false },
+);
 
 const NAV_LINKS = [
   { href: '/cohort', label: '기수 목록' },

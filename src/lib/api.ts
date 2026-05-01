@@ -62,6 +62,7 @@ export const api = {
       ).toString();
       return fetchApi<Member[]>(`/members${qs ? `?${qs}` : ''}`, init);
     },
+    cohorts: () => fetchApi<number[]>('/members/cohorts'),
     detail: async (githubId: string) => {
       const raw = await fetchApi<RawDetail>(`/members/${githubId}`, { next: { revalidate: 300 } }); //dev
       return normalizeDetail(raw);

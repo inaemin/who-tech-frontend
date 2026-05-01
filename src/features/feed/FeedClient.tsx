@@ -1,8 +1,14 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { useFilterState } from '@/hooks/useFilterState';
-import { FeedFilterBar } from '@/features/feed/FeedFilterBar';
+
+const FeedFilterBar = dynamic(
+  () => import('@/features/feed/FeedFilterBar').then((mod) => ({ default: mod.FeedFilterBar })),
+  { ssr: false },
+);
 import { FeedListSection } from '@/features/feed/FeedListSection';
 import { FeedSidebar } from '@/features/feed/FeedSidebar';
 import { api } from '@/lib/api';
@@ -89,38 +95,47 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
   });
 
   const items = data?.pages.flatMap((page) => page.posts) ?? initialItems;
-  const now = Date.now();
 
-  const staffPosts = items
-    .filter((item) => {
-      const diffDays = (now - new Date(item.publishedAt).getTime()) / (1000 * 60 * 60 * 24);
-      return diffDays <= 7;
-    })
-    .filter((item) => {
-      const roles = item.member.roles ?? [];
-      return (roles.includes('coach') || roles.includes('reviewer')) && item.member.cohort === 8;
-    })
-    .slice(0, 5);
+  const staffPosts = useMemo(() => {
+    const now = Date.now();
+    return items
+      .filter((item) => {
+        const diffDays = (now - new Date(item.publishedAt).getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays <= 7;
+      })
+      .filter((item) => {
+        const roles = item.member.roles ?? [];
+        return (roles.includes('coach') || roles.includes('reviewer')) && item.member.cohort === 8;
+      })
+      .slice(0, 5);
+  }, [items]);
 
   const cohorts = initialCohorts;
 
-  const grouped = new Map<number, FeedItem[]>();
-  for (const item of items) {
-    const key = item.member.cohort;
-    if (key == null) continue;
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(item);
-  }
+  const grouped = useMemo(() => {
+    const map = new Map<number, FeedItem[]>();
+    for (const item of items) {
+      const key = item.member.cohort;
+      if (key == null) continue;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return map;
+  }, [items]);
 
-  const platformStats = Object.entries(
-    items.reduce<Record<string, number>>((acc, item) => {
-      const source = getBlogSource(item.url) ?? '기타';
-      acc[source] = (acc[source] ?? 0) + 1;
-      return acc;
-    }, {}),
-  )
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
+  const platformStats = useMemo(
+    () =>
+      Object.entries(
+        items.reduce<Record<string, number>>((acc, item) => {
+          const source = getBlogSource(item.url) ?? '기타';
+          acc[source] = (acc[source] ?? 0) + 1;
+          return acc;
+        }, {}),
+      )
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4),
+    [items],
+  );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">

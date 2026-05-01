@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { CohortArchive } from '@/types';
 import { useFilterState } from '@/hooks/useFilterState';
 
@@ -88,46 +88,50 @@ export function MissionArchive({ archive = [], memberTracks, githubId }: Props) 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const filteredArchives = archive
-    .map((ca) => ({
-      ...ca,
-      levels: ca.levels
-        .map((lvl) => ({
-          ...lvl,
-          repos: lvl.repos
-            .map((repo) => ({
-              ...repo,
-              submissions:
-                repo.submissions?.filter((submission) => {
-                  if (tab === 'pending') return submission.status === 'closed' || ca.cohort === 0;
-                  return submission.status !== 'closed';
-                }) ?? null,
+  const filteredArchives = useMemo(
+    () =>
+      archive
+        .map((ca) => ({
+          ...ca,
+          levels: ca.levels
+            .map((lvl) => ({
+              ...lvl,
+              repos: lvl.repos
+                .map((repo) => ({
+                  ...repo,
+                  submissions:
+                    repo.submissions?.filter((submission) => {
+                      if (tab === 'pending') return submission.status === 'closed' || ca.cohort === 0;
+                      return submission.status !== 'closed';
+                    }) ?? null,
+                }))
+                .filter((r) => {
+                  if (tab === 'pending') return Boolean(r.submissions && r.submissions.length > 0);
+                  if (ca.cohort === 0) return false;
+                  if (tab === 'mission') {
+                    if (r.tabCategory !== 'base') return false;
+                    if (memberTracks.length > 0) {
+                      return r.track === null || memberTracks.includes(r.track);
+                    }
+                    return true;
+                  }
+                  if (tab === 'common') return r.tabCategory === 'common';
+                  return true;
+                })
+                .sort((a, b) => {
+                  if (tab !== 'pending') return 0;
+                  const aDate = a.submissions?.[0]?.submittedAt;
+                  const bDate = b.submissions?.[0]?.submittedAt;
+                  if (!aDate) return 1;
+                  if (!bDate) return -1;
+                  return new Date(String(bDate)).getTime() - new Date(String(aDate)).getTime();
+                }),
             }))
-            .filter((r) => {
-              if (tab === 'pending') return Boolean(r.submissions && r.submissions.length > 0);
-              if (ca.cohort === 0) return false;
-              if (tab === 'mission') {
-                if (r.tabCategory !== 'base') return false;
-                if (memberTracks.length > 0) {
-                  return r.track === null || memberTracks.includes(r.track);
-                }
-                return true;
-              }
-              if (tab === 'common') return r.tabCategory === 'common';
-              return true;
-            })
-            .sort((a, b) => {
-              if (tab !== 'pending') return 0;
-              const aDate = a.submissions?.[0]?.submittedAt;
-              const bDate = b.submissions?.[0]?.submittedAt;
-              if (!aDate) return 1;
-              if (!bDate) return -1;
-              return new Date(String(bDate)).getTime() - new Date(String(aDate)).getTime();
-            }),
+            .filter((lvl) => lvl.repos.length > 0),
         }))
-        .filter((lvl) => lvl.repos.length > 0),
-    }))
-    .filter((ca) => ca.levels.length > 0);
+        .filter((ca) => ca.levels.length > 0),
+    [archive, tab, memberTracks],
+  );
 
   return (
     <div className="flex flex-col gap-5">

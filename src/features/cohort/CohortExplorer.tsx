@@ -2,13 +2,24 @@
 
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import type { Member, Track } from '@/types';
 import { api } from '@/lib/api';
 import { useFilterState } from '@/hooks/useFilterState';
-import { CohortFilterBar, TRACK_OPTIONS } from './CohortFilterBar';
+import { TRACK_OPTIONS } from './CohortFilterBar';
+
+const CohortFilterBar = dynamic(() => import('./CohortFilterBar').then((mod) => ({ default: mod.CohortFilterBar })), {
+  ssr: false,
+});
 import { CohortTabBar } from './CohortTabBar';
-import { CohortMemberList } from './CohortMemberList';
-import { CohortMemberGrid } from './CohortMemberGrid';
+const CohortMemberList = dynamic(
+  () => import('./CohortMemberList').then((mod) => ({ default: mod.CohortMemberList })),
+  { ssr: false },
+);
+const CohortMemberGrid = dynamic(
+  () => import('./CohortMemberGrid').then((mod) => ({ default: mod.CohortMemberGrid })),
+  { ssr: false },
+);
 
 type RoleGroup = 'crew' | 'staff';
 
@@ -76,8 +87,13 @@ export function CohortExplorer({ members, initialCohort }: Props) {
   const { roleGroup, track } = filters;
 
   const { data: allMembers = members } = useQuery({
-    queryKey: ['members', 'cohort-explorer'],
-    queryFn: () => api.members.search({}),
+    queryKey: ['members', 'search', activeCohort, roleGroup, track],
+    queryFn: () =>
+      api.members.search({
+        ...(activeCohort !== null ? { cohort: activeCohort } : {}),
+        role: roleGroup,
+        ...(track !== 'all' ? { track } : {}),
+      }),
     initialData: members,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
