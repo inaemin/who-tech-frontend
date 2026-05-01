@@ -65,6 +65,7 @@ export function Navbar() {
             alt="who.tech"
             width={28}
             height={28}
+            unoptimized
             style={{ filter: 'invert(1)', mixBlendMode: 'screen' }}
           />
           <span className="font-mono text-[15px] font-semibold text-text">who.tech</span>

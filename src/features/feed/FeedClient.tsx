@@ -79,7 +79,7 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
   const { range, cohort, track } = filters;
   const days = range === '30d' ? 30 : 7;
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } = useInfiniteQuery({
     queryKey: ['feed', days, track, cohort],
     queryFn: ({ pageParam }) =>
       api.members.feed({
@@ -94,7 +94,11 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
     staleTime: 5 * 60 * 1000,
   });
 
-  const items = data?.pages.flatMap((page) => page.posts) ?? initialItems;
+  const items = useMemo(() => {
+    if (data?.pages) return data.pages.flatMap((page) => page.posts);
+    if (isPending && (cohort || track)) return [];
+    return initialItems;
+  }, [data, isPending, cohort, track, initialItems]);
 
   const staffPosts = useMemo(() => {
     const now = Date.now();

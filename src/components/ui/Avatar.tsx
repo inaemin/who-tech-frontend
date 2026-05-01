@@ -26,6 +26,7 @@ export function Avatar({ src, alt, size = 40, className }: AvatarProps) {
           alt={alt || 'Avatar'}
           width={size}
           height={size}
+          unoptimized
           className="object-cover"
           onError={() => setImgError(true)}
         />
