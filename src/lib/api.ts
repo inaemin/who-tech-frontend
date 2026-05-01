@@ -83,6 +83,7 @@ export const api = {
           title: decodeHtml(item.title),
         })),
         nextCursor: res.nextCursor,
+        totalCount: res.totalCount,
       };
     },
     refresh: async (githubId: string) => {

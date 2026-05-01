@@ -92,6 +92,7 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -109,7 +110,7 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
-    const observer = new IntersectionObserver(handleObserver, { rootMargin: '200px' });
+    const observer = new IntersectionObserver(handleObserver, { rootMargin: '100px' });
     observer.observe(el);
     return () => observer.disconnect();
   }, [handleObserver]);
@@ -119,6 +120,8 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
     if (isPending && (cohort || track)) return [];
     return initialItems;
   }, [data, isPending, cohort, track, initialItems]);
+
+  const totalCount = data?.pages[0]?.totalCount;
 
   const staffPosts = useMemo(() => {
     const now = Date.now();
@@ -166,7 +169,7 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
       <section className="min-w-0">
         {!hydrated ? (
           <>
-            <FeedFilterBarSkeleton cohorts={cohorts} filteredCount={items.length} />
+            <FeedFilterBarSkeleton cohorts={cohorts} filteredCount={totalCount ?? items.length} />
             <div className="flex flex-col">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="flex items-start gap-3 border-b border-border-dim px-4 py-3.5 last:border-b-0">
@@ -185,10 +188,10 @@ export function FeedClient({ initialItems, initialCohorts, initialCohort, initia
               filters={filters}
               applyFilters={applyFilters}
               cohorts={cohorts}
-              filteredCount={items.length}
+              filteredCount={totalCount ?? items.length}
             />
             <FeedListSection cohort={cohort} cohorts={cohorts} filtered={items} grouped={grouped} />
-            {hasNextPage && <div ref={sentinelRef} className="h-10" />}
+            <div ref={sentinelRef} className="h-10" />
             {isFetchingNextPage && <div className="py-4 text-center text-[13px] text-text-muted">로딩 중...</div>}
           </>
         )}

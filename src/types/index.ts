@@ -74,4 +74,5 @@ export interface FeedItem {
 export interface FeedResponse {
   posts: FeedItem[];
   nextCursor: string | null;
+  totalCount?: number;
 }
