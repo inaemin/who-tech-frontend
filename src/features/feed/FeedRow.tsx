@@ -6,10 +6,20 @@ import { CohortBadge, RoleBadge, TrackBadge } from '@/components/ui/Badge';
 import { formatRelativeDate, getBlogSource } from '@/lib/utils';
 import type { FeedItem } from '@/types';
 
-export function FeedRow({ item }: { item: FeedItem }) {
+export function FeedRow({ item, index }: { item: FeedItem; index?: number }) {
   const source = getBlogSource(item.url);
   return (
-    <div className="relative flex items-start gap-3 border-b border-border-dim px-4 py-3.5 hover:bg-surface-alt last:border-b-0">
+    <div
+      className="relative flex items-start gap-3 border-b border-border-dim px-4 py-3.5 hover:bg-surface-alt last:border-b-0"
+      style={
+        index != null
+          ? {
+              animation: 'feedRowFadeIn 0.3s ease both',
+              animationDelay: `${Math.min(index * 30, 300)}ms`,
+            }
+          : undefined
+      }
+    >
       <a
         href={`https://github.com/${item.member.githubId}`}
         target="_blank"
@@ -31,7 +41,10 @@ export function FeedRow({ item }: { item: FeedItem }) {
         </div>
         <div className="mt-1 flex items-center gap-1.5 text-[12px]">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Link href={`/${item.member.githubId}`} className="relative z-10 text-[13px] text-text-secondary hover:underline">
+            <Link
+              href={`/${item.member.githubId}`}
+              className="relative z-10 text-[13px] text-text-secondary hover:underline"
+            >
               {item.member.nickname}
             </Link>
             <div className="flex flex-wrap items-center gap-1">
@@ -73,8 +86,8 @@ export function FeedList({ items }: { items: FeedItem[] }) {
   }
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
-      {items.map((item) => (
-        <FeedRow key={`${item.url}-${item.publishedAt}`} item={item} />
+      {items.map((item, i) => (
+        <FeedRow key={`${item.url}-${item.publishedAt}`} item={item} index={i} />
       ))}
     </div>
   );

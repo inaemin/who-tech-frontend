@@ -147,7 +147,7 @@ html.apple {
 }
 
 /* h1만 전역 오버라이드 — 반응형 유지 (피드 페이지 제외) */
-html.apple h1:not([class*="text-"]) {
+html.apple h1:not([class*='text-']) {
   font-size: var(--fs-hero);
   font-weight: 600;
   line-height: var(--lh-hero);
@@ -155,7 +155,7 @@ html.apple h1:not([class*="text-"]) {
 }
 
 @media (min-width: 640px) {
-  html.apple h1:not([class*="text-"]) {
+  html.apple h1:not([class*='text-']) {
     font-size: var(--fs-hero-sm);
   }
 }
@@ -195,4 +195,15 @@ html {
 
 html.dark {
   color-scheme: dark;
+}
+
+@keyframes feedRowFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
