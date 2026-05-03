@@ -48,20 +48,19 @@ export function FeedRow({ item, index }: { item: FeedItem; index?: number }) {
               {item.member.nickname}
             </Link>
             <div className="flex flex-wrap items-center gap-1">
-              {(item.member.tracks ?? []).map((t) => (
-                <TrackBadge key={t} track={t} />
-              ))}
+              <TrackBadge track={item.member.tracks[0]} compact />
               {(item.member.cohorts ?? []).length > 0 ? (
-                item.member.cohorts!.map((c) => (
-                  <span key={c.cohort} className="inline-flex items-center gap-1">
-                    <CohortBadge cohort={c.cohort} />
-                    {c.roles
-                      .filter((r) => r !== 'crew')
-                      .map((r) => (
-                        <RoleBadge key={r} role={r} />
-                      ))}
-                  </span>
-                ))
+                item.member.cohorts!.map((c) => {
+                  const hasCrew = c.roles.includes('crew');
+                  const nonCrewRoles = c.roles.filter((r) => r !== 'crew');
+                  return (
+                    <span key={c.cohort} className="inline-flex items-center gap-1">
+                      <CohortBadge cohort={c.cohort} />
+                      {hasCrew && <RoleBadge role="crew" />}
+                      {!hasCrew && nonCrewRoles.map((r) => <RoleBadge key={r} role={r} />)}
+                    </span>
+                  );
+                })
               ) : (
                 <>
                   {item.member.cohort != null && <CohortBadge cohort={item.member.cohort} />}
