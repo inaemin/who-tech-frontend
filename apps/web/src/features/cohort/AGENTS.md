@@ -32,5 +32,5 @@ CohortExplorer (컨테이너)
 ## 주의
 
 - track fallback `useEffect`는 `CohortExplorer`에 있음 (`CohortFilterBar` 아님)
-- `useDeferredValue`/`startTransition`은 기수 탭 전환에만 사용, 필터 변경에는 미적용
-- TanStack Query `queryKey: ['members', 'cohort-explorer']` — 이 키 변경 시 캐시 무효화됨
+- 기수 탭 전환은 `CohortTabBar`의 라우팅으로 처리하고, 역할/트랙 필터는 query string으로 유지
+- TanStack Query `queryKey: ['members', 'cohort-explorer', initialCohort]` — 기수 탭별 멤버 fetch/cache에 사용
