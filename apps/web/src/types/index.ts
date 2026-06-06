@@ -57,17 +57,31 @@ export interface BlogPostDetail {
   totalPages: number;
 }
 
+export interface TecoTalk {
+  id: number;
+  videoId: string;
+  title: string;
+  url: string;
+  thumbnailUrl: string | null;
+  uploadedAt: string;
+  viewCount: number;
+  cohort: number | null;
+}
+
 export interface MemberDetail extends Omit<Member, 'cohort' | 'roles'> {
   cohorts: MemberCohort[];
   blog: string | null;
   lastPostedAt: string | null;
   archive: CohortArchive[];
+  tecoTalks?: TecoTalk[];
 }
 
 export interface FeedItem {
+  id: number;
   url: string;
   title: string;
   publishedAt: string;
+  viewCount: number;
   member: Member;
 }
 
