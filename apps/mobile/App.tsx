@@ -45,6 +45,8 @@ function TabsNavigator() {
       initialRouteName="Feed"
       screenOptions={({ route }) => ({
         headerShown: false,
+        // 탭을 앱 시작 시 미리 마운트해 WebView를 백그라운드 로드 → 첫 진입 시 스켈레톤→콘텐츠 플래시 방지
+        lazy: false,
         tabBarLabel: TAB_LABELS[route.name as keyof TabParamList],
         tabBarActiveTintColor: '#2563eb',
         tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
