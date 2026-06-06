@@ -64,7 +64,6 @@ export interface TecoTalk {
   url: string;
   thumbnailUrl: string | null;
   uploadedAt: string;
-  viewCount: number;
   cohort: number | null;
 }
 
@@ -81,7 +80,6 @@ export interface FeedItem {
   url: string;
   title: string;
   publishedAt: string;
-  viewCount: number;
   member: Member;
 }
 
