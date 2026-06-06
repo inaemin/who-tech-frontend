@@ -122,18 +122,37 @@ export function Navbar() {
       {open && (
         <div className="sm:hidden border-t border-border bg-surface-alt/95 backdrop-blur-sm">
           <div className="flex flex-col py-1">
-            {NAV_LINKS.map(({ href, label }) => (
-              <button
-                key={href}
-                onClick={() => navigate(href)}
-                className={`${linkClass(href, true)} flex items-center justify-start text-left`}
-              >
-                {label}
-              </button>
-            ))}
-            <div className="px-6 py-3 border-t border-border-dim">
-              <ThemeToggle />
-            </div>
+            {NAV_LINKS.map(({ href, label }) => {
+              if (href === '/settings') {
+                const active = (optimisticPath ?? pathname) === href;
+                return (
+                  <div
+                    key={href}
+                    className={`flex items-center gap-3 pr-4 ${
+                      active ? 'bg-surface text-text' : 'text-text-secondary hover:bg-surface hover:text-text'
+                    }`}
+                  >
+                    <button
+                      onClick={() => navigate(href)}
+                      className="flex min-w-0 flex-1 cursor-pointer items-center justify-start px-6 py-3 text-left text-[14px]"
+                    >
+                      {label}
+                    </button>
+                    <ThemeToggle />
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={href}
+                  onClick={() => navigate(href)}
+                  className={`${linkClass(href, true)} flex items-center justify-start text-left`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

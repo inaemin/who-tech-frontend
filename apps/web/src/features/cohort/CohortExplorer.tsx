@@ -72,6 +72,7 @@ interface Props {
 }
 
 const isStaff = (m: Member) => m.roles.some((r) => r === 'coach' || r === 'reviewer');
+const EMPTY_MEMBERS: Member[] = [];
 
 export function CohortExplorer({ members, allCohorts, initialCohort, initialRoleGroup, initialTrack }: Props) {
   const router = useRouter();
@@ -114,19 +115,14 @@ export function CohortExplorer({ members, allCohorts, initialCohort, initialRole
 
   const cohorts = fetchedCohorts?.length ? fetchedCohorts : allCohorts;
 
-  const { data: fetchedMembers } = useQuery({
-    queryKey: ['members', 'cohort', initialCohort],
+  const { data: fetchedMembers, isPending: isMembersPending } = useQuery({
+    queryKey: ['members', 'cohort-explorer', initialCohort],
     queryFn: () => api.members.search(initialCohort != null ? { cohort: initialCohort } : {}),
-    initialData: members,
+    initialData: members.length > 0 ? members : undefined,
     staleTime: 60_000,
   });
 
-  const activeMembers = fetchedMembers ?? members;
-
-  const cohortMembers = useMemo(
-    () => (initialCohort === null ? activeMembers : activeMembers.filter((m) => m.cohort === initialCohort)),
-    [initialCohort, activeMembers],
-  );
+  const cohortMembers = fetchedMembers ?? EMPTY_MEMBERS;
 
   const crewCount = useMemo(
     () => cohortMembers.filter((m) => m.roles.includes('crew') && !isStaff(m)).length,
@@ -161,7 +157,7 @@ export function CohortExplorer({ members, allCohorts, initialCohort, initialRole
   return (
     <>
       <CohortTabBar activeCohort={initialCohort} cohorts={cohorts} />
-      {!hydrated ? (
+      {!hydrated || isMembersPending ? (
         <>
           <CohortFilterBarSkeleton
             cohort={initialCohort ?? 0}
