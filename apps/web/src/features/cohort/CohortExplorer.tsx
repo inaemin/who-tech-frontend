@@ -1,24 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import dynamic from 'next/dynamic';
 import type { Member, Track } from '@/types';
 import { api, type MemberSearchPage } from '@/lib/api';
-import { TRACK_OPTIONS } from './CohortFilterBar';
-
-const CohortFilterBar = dynamic(() => import('./CohortFilterBar').then((mod) => ({ default: mod.CohortFilterBar })), {
-  ssr: false,
-});
+import { CohortFilterBar, TRACK_OPTIONS } from './CohortFilterBar';
 import { CohortTabBar } from './CohortTabBar';
-const CohortMemberList = dynamic(
-  () => import('./CohortMemberList').then((mod) => ({ default: mod.CohortMemberList })),
-  { ssr: false },
-);
-const CohortMemberGrid = dynamic(
-  () => import('./CohortMemberGrid').then((mod) => ({ default: mod.CohortMemberGrid })),
-  { ssr: false },
-);
+import { CohortMemberList } from './CohortMemberList';
+import { CohortMemberGrid } from './CohortMemberGrid';
 
 type RoleGroup = 'crew' | 'staff';
 
@@ -100,31 +89,11 @@ function buildCohortPath(cohort: number | null, roleGroup: RoleGroup, track: Tra
   return query ? `${path}?${query}` : path;
 }
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
-
-  useLayoutEffect(() => {
-    const media = window.matchMedia('(max-width: 639px)');
-    const update = () => setIsMobile(media.matches);
-    update();
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, []);
-
-  return isMobile;
-}
-
 export function CohortExplorer({ initialPage, allCohorts, initialCohort, initialRoleGroup, initialTrack }: Props) {
   const queryClient = useQueryClient();
   const [activeCohort, setActiveCohort] = useState<number | null>(initialCohort);
   const [roleGroup, setRoleGroup] = useState<RoleGroup>(initialRoleGroup);
   const [track, setTrack] = useState<Track | 'all'>(initialTrack);
-  const [hydrated, setHydrated] = useState(false);
-  const isMobile = useIsMobile();
-
-  useLayoutEffect(() => {
-    setHydrated(true);
-  }, []);
 
   useEffect(() => {
     setActiveCohort((prev) => (prev === initialCohort ? prev : initialCohort));
@@ -288,7 +257,7 @@ export function CohortExplorer({ initialPage, allCohorts, initialCohort, initial
   return (
     <>
       <CohortTabBar activeCohort={activeCohort} cohorts={cohorts} onChange={handleCohortChange} />
-      {!hydrated || isMembersPending || isMobile === null ? (
+      {isMembersPending ? (
         <>
           <CohortFilterBarSkeleton
             cohort={activeCohort ?? 0}
@@ -337,11 +306,12 @@ export function CohortExplorer({ initialPage, allCohorts, initialCohort, initial
             filteredCount={filtered.length}
             totalCount={filteredTotalCount}
           />
-          {isMobile ? (
+          <div className="sm:hidden">
             <CohortMemberList members={filtered} emptyMessage={emptyMessage} />
-          ) : (
+          </div>
+          <div className="hidden sm:block">
             <CohortMemberGrid members={filtered} emptyMessage={emptyMessage} />
-          )}
+          </div>
           {hasNextPage && (
             <div className="mt-5 flex justify-center">
               <button
