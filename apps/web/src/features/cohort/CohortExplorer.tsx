@@ -74,6 +74,20 @@ interface Props {
 const isStaff = (m: Member) => m.roles.some((r) => r === 'coach' || r === 'reviewer');
 const EMPTY_MEMBERS: Member[] = [];
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+
+  useLayoutEffect(() => {
+    const media = window.matchMedia('(max-width: 639px)');
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  return isMobile;
+}
+
 export function CohortExplorer({ members, allCohorts, initialCohort, initialRoleGroup, initialTrack }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -87,6 +101,7 @@ export function CohortExplorer({ members, allCohorts, initialCohort, initialRole
       : initialTrack;
 
   const [hydrated, setHydrated] = useState(false);
+  const isMobile = useIsMobile();
   useLayoutEffect(() => {
     setHydrated(true);
   }, []);
@@ -157,7 +172,7 @@ export function CohortExplorer({ members, allCohorts, initialCohort, initialRole
   return (
     <>
       <CohortTabBar activeCohort={initialCohort} cohorts={cohorts} />
-      {!hydrated || isMembersPending ? (
+      {!hydrated || isMembersPending || isMobile === null ? (
         <>
           <CohortFilterBarSkeleton
             cohort={initialCohort ?? 0}
@@ -206,8 +221,11 @@ export function CohortExplorer({ members, allCohorts, initialCohort, initialRole
             filteredCount={filtered.length}
             totalCount={roleGroup === 'crew' ? crewCount : staffCount}
           />
-          <CohortMemberList members={filtered} emptyMessage={emptyMessage} />
-          <CohortMemberGrid members={filtered} emptyMessage={emptyMessage} />
+          {isMobile ? (
+            <CohortMemberList members={filtered} emptyMessage={emptyMessage} />
+          ) : (
+            <CohortMemberGrid members={filtered} emptyMessage={emptyMessage} />
+          )}
         </>
       )}
     </>

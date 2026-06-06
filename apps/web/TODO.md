@@ -2,10 +2,12 @@
 
 === 다음 작업 ===
 
-## 1. PR 머지 + Vercel 배포 확인
+## 1. 기수 목록 모바일 반응성 변경 PR
 
-- 기수 목록 탭별 fetch/cache와 모바일 설정 행의 테마 토글 위치 조정을 같은 PR로 배포.
-- PR 머지 후 Vercel 자동 배포 상태 확인 필요.
+- 모바일/데스크톱 멤버 뷰 중 viewport에 맞는 하나만 마운트하도록 변경.
+- 기수 목록 row animation delay를 최대 300ms로 제한.
+- 기수 탭 클릭 시 optimistic active 스타일을 즉시 반영.
+- 검증: `corepack pnpm --filter @who-tech/web exec tsc --noEmit`, `corepack pnpm --filter @who-tech/web exec next build`, 브라우저 모바일 DOM/탭 반응 확인.
 
 ## 2. 이전 PR 정리
 
