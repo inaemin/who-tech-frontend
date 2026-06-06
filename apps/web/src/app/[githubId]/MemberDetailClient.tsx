@@ -26,8 +26,8 @@ export function MemberDetailClient({ initialMember, initialTab, initialMissionTa
     });
   }, []);
 
-  const profileLinks = (
-    <div className="inline-flex shrink-0 items-center gap-1">
+  const profileLinks = (className: string) => (
+    <div className={`shrink-0 items-center gap-1 ${className}`}>
       <a
         href={`https://github.com/${member.githubId}`}
         target="_blank"
@@ -83,7 +83,7 @@ export function MemberDetailClient({ initialMember, initialTab, initialMissionTa
               </span>
               <RefreshButton githubId={member.githubId} onRefreshed={handleRefreshed} />
             </div>
-            {profileLinks}
+            {profileLinks('inline-flex sm:hidden')}
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             {member.cohorts.map((mc) => (
@@ -104,6 +104,7 @@ export function MemberDetailClient({ initialMember, initialTab, initialMissionTa
                 <TrackBadge key={t} track={t} />
               ))}
             </div>
+            {profileLinks('hidden sm:inline-flex')}
           </div>
           {member.tecoTalks && member.tecoTalks.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5 sm:mt-1">
