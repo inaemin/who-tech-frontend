@@ -32,6 +32,7 @@ CohortExplorer (컨테이너)
 ## 주의
 
 - track fallback `useEffect`는 `CohortExplorer`에 있음 (`CohortFilterBar` 아님)
-- 기수 탭 전환은 `CohortTabBar`의 라우팅으로 처리하고, 역할/트랙 필터는 query string으로 유지
-- TanStack Query `queryKey: ['members', 'cohort-explorer', initialCohort]` — 기수 탭별 멤버 fetch/cache에 사용
+- 기수 탭 전환은 `CohortExplorer` local state + TanStack Query cache로 처리하고, URL은 History API로 동기화
+- TanStack Query `queryKey: ['members', 'cohort-explorer', activeCohort, track]` — 기수/트랙별 멤버 fetch/cache에 사용
+- numbered cohort 탭 데이터는 현재 기수의 인접 기수만 idle 시점에 prefetch
 - 모바일/데스크톱 멤버 뷰는 viewport에 맞는 하나만 마운트해 숨겨진 뷰의 DOM 비용을 피함

@@ -9,6 +9,13 @@ import type {
 } from '@/types';
 import { decodeHtml } from './utils';
 
+export type MemberSearchPage = {
+  members: Member[];
+  totalCount: number;
+  counts: { crew: number; staff: number };
+  nextOffset: number | null;
+};
+
 const SERVER_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://iftype.store';
 // 브라우저에서는 CORS 우회를 위해 Next.js rewrite 프록시 사용
 const BASE_URL = typeof window === 'undefined' ? SERVER_URL : '/api';
@@ -61,6 +68,27 @@ export const api = {
         ),
       ).toString();
       return fetchApi<Member[]>(`/members${qs ? `?${qs}` : ''}`, init);
+    },
+    searchPage: (
+      params: {
+        q?: string;
+        cohort?: number;
+        track?: string;
+        role?: string;
+        roleGroup?: 'crew' | 'staff';
+        limit?: number;
+        offset?: number;
+      },
+      init?: RequestInit,
+    ) => {
+      const qs = new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(params)
+            .filter(([, v]) => v != null)
+            .map(([k, v]) => [k, String(v)]),
+        ),
+      ).toString();
+      return fetchApi<MemberSearchPage>(`/members/search${qs ? `?${qs}` : ''}`, init);
     },
     cohorts: () => fetchApi<number[]>('/members/cohorts'),
     detail: async (githubId: string) => {

@@ -1,11 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import type { Member, Track } from '@/types';
-import { api } from '@/lib/api';
+import { api, type MemberSearchPage } from '@/lib/api';
 import { TRACK_OPTIONS } from './CohortFilterBar';
 
 const CohortFilterBar = dynamic(() => import('./CohortFilterBar').then((mod) => ({ default: mod.CohortFilterBar })), {
@@ -64,7 +63,7 @@ function CohortFilterBarSkeleton({ cohort, counts, visibleTrackOptions, filtered
 }
 
 interface Props {
-  members: Member[];
+  initialPage: MemberSearchPage;
   allCohorts: number[];
   initialCohort: number | null;
   initialRoleGroup: RoleGroup;
@@ -72,7 +71,34 @@ interface Props {
 }
 
 const isStaff = (m: Member) => m.roles.some((r) => r === 'coach' || r === 'reviewer');
+const MEMBER_PAGE_SIZE = 120;
 const EMPTY_MEMBERS: Member[] = [];
+
+function getCohortFromPath(pathname: string): number | null {
+  const match = pathname.match(/^\/cohort\/(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
+function getFiltersFromSearch(search: string, initialRoleGroup: RoleGroup, initialTrack: Track | 'all') {
+  const params = new URLSearchParams(search);
+  const roleGroup: RoleGroup = params.get('roleGroup') === 'staff' ? 'staff' : initialRoleGroup;
+  const trackParam = params.get('track') as Track | 'all' | null;
+  const track: Track | 'all' =
+    trackParam === 'frontend' || trackParam === 'backend' || trackParam === 'android' || trackParam === 'all'
+      ? trackParam
+      : initialTrack;
+
+  return { roleGroup, track };
+}
+
+function buildCohortPath(cohort: number | null, roleGroup: RoleGroup, track: Track | 'all') {
+  const params = new URLSearchParams();
+  if (roleGroup !== 'crew') params.set('roleGroup', roleGroup);
+  if (track !== 'all') params.set('track', track);
+  const query = params.toString();
+  const path = cohort === null ? '/cohort' : `/cohort/${cohort}`;
+  return query ? `${path}?${query}` : path;
+}
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -88,37 +114,58 @@ function useIsMobile() {
   return isMobile;
 }
 
-export function CohortExplorer({ members, allCohorts, initialCohort, initialRoleGroup, initialTrack }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const roleGroup: RoleGroup = searchParams.get('roleGroup') === 'staff' ? 'staff' : initialRoleGroup;
-  const trackParam = searchParams.get('track') as Track | 'all' | null;
-  const track: Track | 'all' =
-    trackParam === 'frontend' || trackParam === 'backend' || trackParam === 'android' || trackParam === 'all'
-      ? trackParam
-      : initialTrack;
-
+export function CohortExplorer({ initialPage, allCohorts, initialCohort, initialRoleGroup, initialTrack }: Props) {
+  const queryClient = useQueryClient();
+  const [activeCohort, setActiveCohort] = useState<number | null>(initialCohort);
+  const [roleGroup, setRoleGroup] = useState<RoleGroup>(initialRoleGroup);
+  const [track, setTrack] = useState<Track | 'all'>(initialTrack);
   const [hydrated, setHydrated] = useState(false);
   const isMobile = useIsMobile();
+
   useLayoutEffect(() => {
     setHydrated(true);
   }, []);
 
+  useEffect(() => {
+    setActiveCohort((prev) => (prev === initialCohort ? prev : initialCohort));
+  }, [initialCohort]);
+
+  useEffect(() => {
+    setRoleGroup((prev) => (prev === initialRoleGroup ? prev : initialRoleGroup));
+  }, [initialRoleGroup]);
+
+  useEffect(() => {
+    setTrack((prev) => (prev === initialTrack ? prev : initialTrack));
+  }, [initialTrack]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveCohort(getCohortFromPath(window.location.pathname));
+      const next = getFiltersFromSearch(window.location.search, initialRoleGroup, initialTrack);
+      setRoleGroup(next.roleGroup);
+      setTrack(next.track);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [initialRoleGroup, initialTrack]);
+
+  const replaceUrl = useCallback((cohort: number | null, nextRoleGroup: RoleGroup, nextTrack: Track | 'all') => {
+    window.history.replaceState(null, '', buildCohortPath(cohort, nextRoleGroup, nextTrack));
+  }, []);
+
+  const pushUrl = useCallback((cohort: number | null, nextRoleGroup: RoleGroup, nextTrack: Track | 'all') => {
+    window.history.pushState(null, '', buildCohortPath(cohort, nextRoleGroup, nextTrack));
+  }, []);
+
   const applyFilters = useCallback(
     (patch: Partial<{ roleGroup: RoleGroup; track: Track | 'all' }>) => {
-      const next = new URLSearchParams(searchParams.toString());
       const nextRoleGroup = patch.roleGroup ?? roleGroup;
       const nextTrack = patch.track ?? track;
-      if (nextRoleGroup !== 'crew') next.set('roleGroup', nextRoleGroup);
-      else next.delete('roleGroup');
-      if (nextTrack !== 'all') next.set('track', nextTrack);
-      else next.delete('track');
-      const query = next.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      setRoleGroup(nextRoleGroup);
+      setTrack(nextTrack);
+      replaceUrl(activeCohort, nextRoleGroup, nextTrack);
     },
-    [pathname, router, searchParams, roleGroup, track],
+    [activeCohort, replaceUrl, roleGroup, track],
   );
 
   const { data: fetchedCohorts } = useQuery({
@@ -130,31 +177,90 @@ export function CohortExplorer({ members, allCohorts, initialCohort, initialRole
 
   const cohorts = fetchedCohorts?.length ? fetchedCohorts : allCohorts;
 
-  const { data: fetchedMembers, isPending: isMembersPending } = useQuery({
-    queryKey: ['members', 'cohort-explorer', initialCohort],
-    queryFn: () => api.members.search(initialCohort != null ? { cohort: initialCohort } : {}),
-    initialData: members.length > 0 ? members : undefined,
+  const filtersMatchInitial =
+    activeCohort === initialCohort && track === initialTrack && roleGroup === initialRoleGroup;
+
+  const {
+    data: memberPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isPending: isMembersPending,
+  } = useInfiniteQuery({
+    queryKey: ['members', 'cohort-explorer', activeCohort, track, roleGroup],
+    queryFn: ({ pageParam }) =>
+      api.members.searchPage({
+        ...(activeCohort != null ? { cohort: activeCohort } : {}),
+        ...(track !== 'all' ? { track } : {}),
+        roleGroup,
+        limit: MEMBER_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined,
+    initialData: filtersMatchInitial
+      ? {
+          pages: [initialPage],
+          pageParams: [0],
+        }
+      : undefined,
     staleTime: 60_000,
   });
 
-  const cohortMembers = fetchedMembers ?? EMPTY_MEMBERS;
-
-  const crewCount = useMemo(
-    () => cohortMembers.filter((m) => m.roles.includes('crew') && !isStaff(m)).length,
-    [cohortMembers],
+  const firstMemberPage = memberPages?.pages[0] ?? (filtersMatchInitial ? initialPage : undefined);
+  const cohortMembers = useMemo(
+    () => memberPages?.pages.flatMap((page) => page.members) ?? EMPTY_MEMBERS,
+    [memberPages],
   );
 
-  const staffCount = useMemo(() => cohortMembers.filter((m) => isStaff(m)).length, [cohortMembers]);
+  useEffect(() => {
+    if (cohorts.length === 0) return;
+
+    if (activeCohort === null) return;
+
+    const activeIndex = cohorts.indexOf(activeCohort);
+    const adjacentCohorts = [cohorts[activeIndex - 1], cohorts[activeIndex + 1]].filter(
+      (cohort): cohort is number => cohort != null,
+    );
+
+    const prefetch = () => {
+      adjacentCohorts.forEach((cohort) => {
+        void queryClient.prefetchQuery({
+          queryKey: ['members', 'cohort-explorer', cohort, track, roleGroup],
+          queryFn: () =>
+            api.members.searchPage({
+              cohort,
+              ...(track !== 'all' ? { track } : {}),
+              roleGroup,
+              limit: MEMBER_PAGE_SIZE,
+              offset: 0,
+            }),
+          staleTime: 60_000,
+        });
+      });
+    };
+
+    const scheduleIdle = window.requestIdleCallback;
+    const cancelIdle = window.cancelIdleCallback;
+    if (typeof scheduleIdle === 'function' && typeof cancelIdle === 'function') {
+      const id = scheduleIdle(prefetch, { timeout: 2000 });
+      return () => cancelIdle(id);
+    }
+
+    const id = globalThis.setTimeout(prefetch, 500);
+    return () => globalThis.clearTimeout(id);
+  }, [activeCohort, cohorts, queryClient, roleGroup, track]);
+
+  const crewCount = firstMemberPage?.counts.crew ?? 0;
+
+  const staffCount = firstMemberPage?.counts.staff ?? 0;
 
   const roleScopedMembers = useMemo(() => {
     if (roleGroup === 'crew') return cohortMembers.filter((m) => m.roles.includes('crew') && !isStaff(m));
     return cohortMembers.filter((m) => isStaff(m));
   }, [cohortMembers, roleGroup]);
 
-  const visibleTrackOptions = useMemo(() => {
-    const availableTracks = new Set(roleScopedMembers.flatMap((m) => m.tracks));
-    return TRACK_OPTIONS.filter(({ value }) => value === 'all' || availableTracks.has(value));
-  }, [roleScopedMembers]);
+  const visibleTrackOptions = TRACK_OPTIONS;
 
   useEffect(() => {
     if (track === 'all') return;
@@ -168,14 +274,24 @@ export function CohortExplorer({ members, allCohorts, initialCohort, initialRole
   );
 
   const emptyMessage = roleScopedMembers.length === 0 ? '해당 기수의 멤버가 없습니다.' : '조건에 맞는 멤버가 없습니다.';
+  const filteredTotalCount = roleGroup === 'crew' ? crewCount : staffCount;
+
+  const handleCohortChange = useCallback(
+    (cohort: number | null) => {
+      if (cohort === activeCohort) return;
+      setActiveCohort(cohort);
+      pushUrl(cohort, roleGroup, track);
+    },
+    [activeCohort, pushUrl, roleGroup, track],
+  );
 
   return (
     <>
-      <CohortTabBar activeCohort={initialCohort} cohorts={cohorts} />
+      <CohortTabBar activeCohort={activeCohort} cohorts={cohorts} onChange={handleCohortChange} />
       {!hydrated || isMembersPending || isMobile === null ? (
         <>
           <CohortFilterBarSkeleton
-            cohort={initialCohort ?? 0}
+            cohort={activeCohort ?? 0}
             counts={{ crew: crewCount, staff: staffCount }}
             visibleTrackOptions={visibleTrackOptions}
             filteredCount={filtered.length}
@@ -213,18 +329,31 @@ export function CohortExplorer({ members, allCohorts, initialCohort, initialRole
       ) : (
         <>
           <CohortFilterBar
-            cohort={initialCohort ?? 0}
+            cohort={activeCohort ?? 0}
             filters={{ roleGroup, track }}
             applyFilters={applyFilters}
             counts={{ crew: crewCount, staff: staffCount }}
             visibleTrackOptions={visibleTrackOptions}
             filteredCount={filtered.length}
-            totalCount={roleGroup === 'crew' ? crewCount : staffCount}
+            totalCount={filteredTotalCount}
           />
           {isMobile ? (
             <CohortMemberList members={filtered} emptyMessage={emptyMessage} />
           ) : (
             <CohortMemberGrid members={filtered} emptyMessage={emptyMessage} />
+          )}
+          {hasNextPage && (
+            <div className="mt-5 flex justify-center">
+              <button
+                onClick={() => void fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="cursor-pointer rounded-md border border-border px-4 py-2 text-[13px] font-medium text-text-secondary transition-colors hover:bg-surface hover:text-text disabled:cursor-default disabled:opacity-60"
+              >
+                {isFetchingNextPage
+                  ? '불러오는 중...'
+                  : `더 보기 (${filtered.length}/${filteredTotalCount || firstMemberPage?.totalCount || filtered.length})`}
+              </button>
+            </div>
           )}
         </>
       )}
