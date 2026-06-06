@@ -20,18 +20,25 @@ export function FeedRow({ item, index }: { item: FeedItem; index?: number }) {
           : undefined
       }
     >
-      <a
-        href={`https://github.com/${item.member.githubId}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="relative z-10 mt-0.5 flex-shrink-0"
-      >
-        <Avatar src={item.member.avatarUrl} alt={item.member.nickname} size={30} />
-      </a>
+      <div className="relative z-10 mt-0.5 flex flex-shrink-0 flex-col items-center gap-0.5">
+        <a href={`https://github.com/${item.member.githubId}`} target="_blank" rel="noopener noreferrer">
+          <Avatar src={item.member.avatarUrl} alt={item.member.nickname} size={30} />
+        </a>
+        <span
+          className="flex items-center gap-0.5 text-[10px] leading-none text-text-muted"
+          title={`조회수 ${item.viewCount}`}
+        >
+          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          {item.viewCount}
+        </span>
+      </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1.5">
           <a
-            href={item.url}
+            href={`/api/members/blog-posts/${item.id}/visit`}
             target="_blank"
             rel="noopener noreferrer"
             className="break-all text-[14px] text-text hover:underline after:absolute after:inset-0 after:content-['']"

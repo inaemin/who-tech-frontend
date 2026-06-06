@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { CohortBadge, RoleBadge, TrackBadge } from '@/components/ui/Badge';
+import { TecoTalkBadge } from '@/components/ui/TecoTalkBadge';
 import { ProfileTabs } from '@/features/profile/ProfileTabs';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import type { MemberDetail } from '@/types';
@@ -96,6 +97,14 @@ export function MemberDetailClient({ initialMember, initialTab, initialMissionTa
               </a>
             )}
           </div>
+          {member.tecoTalks && member.tecoTalks.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5 sm:mt-1">
+              <span className="text-[11px] text-text-muted">테코톡</span>
+              {member.tecoTalks.map((talk) => (
+                <TecoTalkBadge key={talk.id} talk={talk} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
