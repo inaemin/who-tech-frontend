@@ -311,7 +311,14 @@ jobs:
           script: |
             const marker = '<!-- who-tech-lighthouse-report -->';
             const status = (value) => value === 'success' ? '✅ 성공' : value === 'skipped' ? '⏭️ 건너뜀' : '❌ 실패';
-            const score = (value) => value && value !== 'N/A' ? `${value}` : 'N/A';
+            const scoreWithIndicator = (value) => {
+              if (!value || value === 'N/A') return 'N/A';
+              const numericScore = Number(value);
+              if (Number.isNaN(numericScore)) return `${value}`;
+              if (numericScore >= 90) return `🟢 ${numericScore}`;
+              if (numericScore >= 50) return `🟡 ${numericScore}`;
+              return `🔴 ${numericScore}`;
+            };
 
             const body = `${marker}
             ## Lighthouse 리포트
@@ -319,10 +326,10 @@ jobs:
             | 항목 | 점수 |
             | --- | ---: |
             | 실행 결과 | ${status(process.env.LIGHTHOUSE_RESULT)} |
-            | 성능 | ${score(process.env.LH_PERFORMANCE)} |
-            | 접근성 | ${score(process.env.LH_ACCESSIBILITY)} |
-            | 모범 사례 | ${score(process.env.LH_BEST_PRACTICES)} |
-            | SEO | ${score(process.env.LH_SEO)} |
+            | 성능 | ${scoreWithIndicator(process.env.LH_PERFORMANCE)} |
+            | 접근성 | ${scoreWithIndicator(process.env.LH_ACCESSIBILITY)} |
+            | 모범 사례 | ${scoreWithIndicator(process.env.LH_BEST_PRACTICES)} |
+            | SEO | ${scoreWithIndicator(process.env.LH_SEO)} |
 
             <details>
             <summary>세부 내용 보기</summary>
