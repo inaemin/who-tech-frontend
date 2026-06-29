@@ -1,0 +1,344 @@
+name: Web CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web-ci.yml'
+      - '.npmrc'
+      - '.prettierignore'
+      - '.prettierrc'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web-ci.yml'
+      - '.npmrc'
+      - '.prettierignore'
+      - '.prettierrc'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  quality:
+    name: Web quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      lint: ${{ steps.lint.outcome }}
+      format: ${{ steps.format.outcome }}
+      typecheck: ${{ steps.typecheck.outcome }}
+      build: ${{ steps.build.outcome }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.18.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore Turbo and Next.js cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .turbo
+            apps/web/.next/cache
+          key: ${{ runner.os }}-web-build-${{ hashFiles('pnpm-lock.yaml', 'package.json', 'turbo.json', 'apps/web/package.json', 'apps/web/next.config.ts', 'apps/web/tsconfig.json', 'apps/web/src/**', 'apps/web/public/**') }}
+          restore-keys: |
+            ${{ runner.os }}-web-build-
+
+      - name: Lint web
+        id: lint
+        continue-on-error: true
+        run: pnpm --filter @who-tech/web lint
+
+      - name: Check web formatting
+        id: format
+        continue-on-error: true
+        run: pnpm --filter @who-tech/web exec prettier --check . --ignore-path ../../.prettierignore
+
+      - name: Type-check web
+        id: typecheck
+        continue-on-error: true
+        run: pnpm --filter @who-tech/web exec tsc --noEmit
+
+      - name: Build web
+        id: build
+        continue-on-error: true
+        run: pnpm build:web
+
+      - name: Upload web build artifact
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-next-build
+          path: |
+            apps/web/.next
+            !apps/web/.next/cache
+          include-hidden-files: true
+          retention-days: 1
+
+      - name: Comment quality report on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        env:
+          LINT_RESULT: ${{ steps.lint.outcome }}
+          FORMAT_RESULT: ${{ steps.format.outcome }}
+          TYPECHECK_RESULT: ${{ steps.typecheck.outcome }}
+          BUILD_RESULT: ${{ steps.build.outcome }}
+        with:
+          script: |
+            const marker = '<!-- who-tech-quality-report -->';
+            const status = (value) => value === 'success' ? '✅ 성공' : value === 'skipped' ? '⏭️ 건너뜀' : '❌ 실패';
+
+            const body = `${marker}
+            ## 웹 CI 체크 결과
+
+            | 항목 | 결과 |
+            | --- | --- |
+            | 린트 | ${status(process.env.LINT_RESULT)} |
+            | 포맷 | ${status(process.env.FORMAT_RESULT)} |
+            | 타입 체크 | ${status(process.env.TYPECHECK_RESULT)} |
+            | 빌드 | ${status(process.env.BUILD_RESULT)} |
+            `;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const previous = comments.data.find((comment) => comment.user.type === 'Bot' && comment.body?.includes(marker));
+
+            if (previous) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Fail if required quality checks failed
+        if: always()
+        env:
+          LINT_RESULT: ${{ steps.lint.outcome }}
+          FORMAT_RESULT: ${{ steps.format.outcome }}
+          TYPECHECK_RESULT: ${{ steps.typecheck.outcome }}
+          BUILD_RESULT: ${{ steps.build.outcome }}
+        run: |
+          test "$LINT_RESULT" = "success"
+          test "$FORMAT_RESULT" = "success"
+          test "$TYPECHECK_RESULT" = "success"
+          test "$BUILD_RESULT" = "success"
+
+  lighthouse:
+    name: Lighthouse report
+    needs: quality
+    if: needs.quality.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    outputs:
+      result: ${{ steps.lighthouse.outcome }}
+      performance: ${{ steps.scores.outputs.performance }}
+      accessibility: ${{ steps.scores.outputs.accessibility }}
+      best_practices: ${{ steps.scores.outputs.best_practices }}
+      seo: ${{ steps.scores.outputs.seo }}
+      details: ${{ steps.scores.outputs.details }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.18.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-next-build
+          path: apps/web/.next
+
+      - name: Start Lighthouse target
+        id: server
+        continue-on-error: true
+        run: |
+          pnpm --filter @who-tech/web start > /tmp/who-tech-web.log 2>&1 &
+          echo $! > /tmp/who-tech-web.pid
+          for attempt in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:3000 > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/who-tech-web.log
+          exit 1
+
+      - name: Run Lighthouse
+        id: lighthouse
+        if: steps.server.outcome == 'success'
+        continue-on-error: true
+        run: |
+          mkdir -p .lighthouse
+          pnpm dlx lighthouse http://127.0.0.1:3000 \
+            --output=json \
+            --output-path=.lighthouse/home.json \
+            --chrome-flags="--headless=new --no-sandbox" \
+            --quiet
+
+      - name: Extract Lighthouse scores
+        id: scores
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const outputPath = process.env.GITHUB_OUTPUT;
+
+          const defaults = {
+            performance: 'N/A',
+            accessibility: 'N/A',
+            best_practices: 'N/A',
+            seo: 'N/A',
+          };
+          let details = '감점 항목 없음';
+
+          if (fs.existsSync('.lighthouse/home.json')) {
+            const lhr = JSON.parse(fs.readFileSync('.lighthouse/home.json', 'utf8'));
+            const categories = lhr.categories ?? {};
+            defaults.performance = score(categories.performance);
+            defaults.accessibility = score(categories.accessibility);
+            defaults.best_practices = score(categories['best-practices']);
+            defaults.seo = score(categories.seo);
+            details = buildDetails(lhr);
+          }
+
+          fs.appendFileSync(outputPath, Object.entries(defaults).map(([key, value]) => `${key}=${value}`).join('\n') + '\n');
+          fs.appendFileSync(outputPath, `details<<LIGHTHOUSE_DETAILS\n${details}\nLIGHTHOUSE_DETAILS\n`);
+
+          function score(category) {
+            return typeof category?.score === 'number' ? String(Math.round(category.score * 100)) : 'N/A';
+          }
+
+          function buildDetails(lhr) {
+            const categoryLabels = {
+              performance: '성능',
+              accessibility: '접근성',
+              'best-practices': '모범 사례',
+              seo: 'SEO',
+            };
+
+            const rows = Object.entries(categoryLabels).flatMap(([categoryId, categoryLabel]) => {
+              const category = lhr.categories?.[categoryId];
+              if (!category) return [];
+
+              return category.auditRefs
+                .filter((ref) => ref.weight > 0)
+                .map((ref) => lhr.audits?.[ref.id])
+                .filter((audit) => audit && audit.score !== null && audit.score !== 1)
+                .map((audit) => ({
+                  category: categoryLabel,
+                  title: audit.title,
+                  value: audit.displayValue || scoreText(audit.score),
+                }));
+            });
+
+            if (rows.length === 0) return '감점 항목 없음';
+
+            return [
+              '| 항목 | 세부 감사 | 값 |',
+              '| --- | --- | --- |',
+              ...rows.slice(0, 10).map((row) => `| ${row.category} | ${escapeTable(row.title)} | ${escapeTable(row.value)} |`),
+            ].join('\n');
+          }
+
+          function scoreText(value) {
+            if (value === 0) return '실패';
+            if (typeof value === 'number') return `${Math.round(value * 100)}점`;
+            return 'N/A';
+          }
+
+          function escapeTable(value) {
+            return String(value).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+          }
+          NODE
+
+      - name: Comment Lighthouse report on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        env:
+          LIGHTHOUSE_RESULT: ${{ steps.lighthouse.outcome }}
+          LH_PERFORMANCE: ${{ steps.scores.outputs.performance }}
+          LH_ACCESSIBILITY: ${{ steps.scores.outputs.accessibility }}
+          LH_BEST_PRACTICES: ${{ steps.scores.outputs.best_practices }}
+          LH_SEO: ${{ steps.scores.outputs.seo }}
+          LH_DETAILS: ${{ steps.scores.outputs.details }}
+        with:
+          script: |
+            const marker = '<!-- who-tech-lighthouse-report -->';
+            const status = (value) => value === 'success' ? '✅ 성공' : value === 'skipped' ? '⏭️ 건너뜀' : '❌ 실패';
+            const score = (value) => value && value !== 'N/A' ? `${value}` : 'N/A';
+
+            const body = `${marker}
+            ## Lighthouse 리포트
+
+            | 항목 | 점수 |
+            | --- | ---: |
+            | 실행 결과 | ${status(process.env.LIGHTHOUSE_RESULT)} |
+            | 성능 | ${score(process.env.LH_PERFORMANCE)} |
+            | 접근성 | ${score(process.env.LH_ACCESSIBILITY)} |
+            | 모범 사례 | ${score(process.env.LH_BEST_PRACTICES)} |
+            | SEO | ${score(process.env.LH_SEO)} |
+
+            <details>
+            <summary>세부 내용 보기</summary>
+
+            ${process.env.LH_DETAILS}
+
+            </details>
+            `;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const previous = comments.data.find((comment) => comment.user.type === 'Bot' && comment.body?.includes(marker));
+
+            if (previous) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

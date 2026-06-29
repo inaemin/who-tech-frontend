@@ -9,6 +9,7 @@ dist/
 *.tsbuildinfo
 .mcp.json
 .vercel
+.lighthouse/
 .DS_Store
 
 # OMC
