@@ -54,7 +54,7 @@ function normalizeDetail(raw: RawDetail): MemberDetail {
       })),
     })),
   }));
-  return { ...raw, archive } as MemberDetail;
+  return { ...raw, archive };
 }
 
 export const api = {
