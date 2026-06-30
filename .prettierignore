@@ -1,0 +1,10 @@
+.next
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+apps/**/.next
+apps/**/dist
+apps/**/coverage
+apps/mobile/ios
+apps/mobile/android
