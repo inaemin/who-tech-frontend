@@ -6,7 +6,6 @@ import { cookies } from 'next/headers';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
 import { Navbar } from '@/components/layout/Navbar';
-import { Footer } from '@/components/layout/Footer';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 
@@ -56,12 +55,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="ko" suppressHydrationWarning className={htmlClass}>
-      <body className="min-h-screen bg-bg font-sans flex flex-col">
+      <body className="min-h-screen bg-bg font-sans">
         <ThemeProvider initialTheme={theme} initialDesign={design}>
           <QueryProvider>
             <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
+            <main>{children}</main>
           </QueryProvider>
         </ThemeProvider>
         <Analytics />
