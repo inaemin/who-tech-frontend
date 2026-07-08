@@ -278,7 +278,7 @@ function PrivacyTab() {
     <div className="max-w-2xl text-[13px] leading-relaxed text-text-secondary space-y-6">
       <div>
         <h1 className="text-[18px] font-bold text-text mb-1">개인정보처리방침</h1>
-        <p className="text-[11px] text-text-muted">시행일자: 2026년 7월 8일</p>
+        <p className="text-[11px] text-text-muted">시행일자: 2026년 3월 2일</p>
       </div>
 
       <div className="border-t border-border pt-6 space-y-6">
@@ -370,7 +370,7 @@ function PrivacyTab() {
 
         <section>
           <h2 className="text-[14px] font-semibold text-text mb-1.5">제9조 (개인정보 처리방침의 변경)</h2>
-          <p>이 개인정보 처리방침은 2026년 7월 8일부터 적용됩니다.</p>
+          <p>이 개인정보 처리방침은 2026년 3월 2일부터 적용됩니다.</p>
         </section>
       </div>
     </div>
